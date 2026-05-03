@@ -14,7 +14,7 @@ Docs: https://docs.openclaw.ai
 
 ### Fixes
 
-- Network proxy: preserve target TLS hostname validation for Node HTTPS requests routed through the managed HTTP proxy, so Discord-style CONNECT traffic no longer validates certificates against the local proxy host. Fixes #74809. Thanks @abnershang.
+- Network proxy: preserve target TLS hostname validation for Node HTTPS requests routed through the managed HTTP proxy, so Discord-style CONNECT traffic no longer validates certificates against the local proxy host. Fixes #74809. (#76442) Thanks @abnershang and @jesse-merhi.
 - Gateway/sessions: keep async `sessions.list` title and preview hydration bounded to transcript head/tail reads so Control UI polling cannot full-scan large session transcripts every refresh. Thanks @vincentkoc.
 - Gateway: preserve stack diagnostics when `chat.send` or agent attachment parsing/staging fails, improving image-send failure triage. Refs #63432. (#75135) Thanks @keen0206.
 - Maintainer workflow: push prepared PR heads through GitHub's verified commit API by default and require an explicit override before git-protocol pushes can publish unsigned commits. Thanks @BunsDev.
