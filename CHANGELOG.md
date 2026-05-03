@@ -20,6 +20,7 @@ Docs: https://docs.openclaw.ai
 
 - Docker/Gateway: pass Docker setup `.env` values into gateway and CLI containers and preserve exec SecretRef `passEnv` keys in managed service plans, so 1Password Connect-backed Discord tokens keep resolving after doctor or plugin repair. Thanks @vincentkoc.
 - Control UI/WebChat: explain compaction boundaries in chat history and link directly to session checkpoint controls so pre-compaction turns no longer look silently lost after refresh. Fixes #76415. Thanks @BunsDev.
+- Plugins/install: resolve bare official external plugin IDs such as `brave` through the official catalog when no bundled source is available, so packaged installs fetch the intended scoped npm package instead of an unrelated unscoped package.
 - Gateway/sessions: keep async `sessions.list` title and preview hydration bounded to transcript head/tail reads so Control UI polling cannot full-scan large session transcripts every refresh. Thanks @vincentkoc.
 - Gateway/sessions: keep bulk `sessions.list` rows lightweight by skipping per-row transcript usage fallback, display model inference, and plugin projection, avoiding event-loop stalls in large session stores. Thanks @Marvinthebored and @vincentkoc.
 - CLI/plugins: reject missing plugin ids before config writes in `plugins enable` and `plugins disable` so a typo no longer persists a stale config entry. (#73554) Thanks @ai-hpc.
