@@ -75,7 +75,7 @@ Docs: https://docs.openclaw.ai
 - Parallels/Windows update smoke: escape the stale post-swap import regex in the generated PowerShell script so expected `ERR_MODULE_NOT_FOUND` update handoffs continue to post-update health checks. (#75315)
 - Slack: allow draft preview streaming in top-level DMs when `replyToMode` is `off` while keeping Slack native streaming and assistant thread status gated on reply threads. Fixes #56480. (#56544) Thanks @HangGlidersRule.
 - Control UI/chat: remove the delete-confirm popover outside-click listener on every dismiss path, so Cancel, Delete, outside clicks, and same-button toggles no longer leave stale document listeners behind. Refs #75590 and #69982. Thanks @Ricardo-M-L.
-- Network proxy: preserve target TLS hostname validation for Node HTTPS requests routed through the managed HTTP proxy, so Discord-style CONNECT traffic no longer validates certificates against the local proxy host. Fixes #74809. (#76442) Thanks @abnershang and @jesse-merhi.
+- Network proxy: preserve target TLS hostname validation for Node HTTPS requests routed through the managed HTTP proxy, so Discord-style CONNECT traffic no longer validates certificates against the local proxy host. Fixes #74809. (#76442) Thanks @jesse-merhi and @abnershang.
 
 ## 2026.5.2
 
