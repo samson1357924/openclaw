@@ -101,12 +101,16 @@ export function createLineNodeWebhookHandler(params: {
 
       if (body.events && body.events.length > 0) {
         logVerbose(`line: received ${body.events.length} webhook events`);
-        await params.bot.handleWebhook(body);
-      }
+        // 非阻塞處理：立即返回 200 避免 reply token 過期，同時記錄錯誤便於後續處理
+        params.bot.handleWebhook(body).catch(err => {
+          params.runtime.error?.(danger(`line webhook error: ${String(err)}`));
+        });
+      
 
       res.statusCode = 200;
       res.setHeader("Content-Type", "application/json");
       res.end(JSON.stringify({ status: "ok" }));
+      }
     } catch (err) {
       if (isRequestBodyLimitError(err, "PAYLOAD_TOO_LARGE")) {
         res.statusCode = 413;
