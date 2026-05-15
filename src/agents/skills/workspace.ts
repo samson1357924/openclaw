@@ -329,6 +329,13 @@ function resolveContainedSkillPath(params: {
   if (isPathInside(params.rootRealPath, candidateRealPath)) {
     return candidateRealPath;
   }
+  // Allow symlinks whose parent directory lives inside the configured root.
+  // This covers cases like ~/.agents/skills/cua-driver → /Applications/.../cua-driver
+  // where the symlink file is inside the root but its realpath target is outside.
+  const candidateDir = path.resolve(path.dirname(params.candidatePath));
+  if (isPathInside(params.rootRealPath, candidateDir)) {
+    return candidateRealPath;
+  }
   warnEscapedSkillPath({
     source: params.source,
     rootDir: params.rootDir,
