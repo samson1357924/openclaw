@@ -109,6 +109,18 @@ async function applyAbortTarget(params: {
   }
 }
 
+/** Watchdog: if the abort signal doesn't stop the run within 5s, force gateway restart. */
+const STOP_FORCE_GRACE_MS = 5_000;
+async function forceStopWithWatchdog(sessionKey: string | undefined): Promise<void> {
+  if (!sessionKey) return;
+  const idle = await replyRunRegistry.waitForIdle(sessionKey, STOP_FORCE_GRACE_MS);
+  if (idle) return; // Run stopped cleanly
+  try {
+    const { scheduleGatewaySigusr1Restart } = await import("./restart.js");
+    scheduleGatewaySigusr1Restart({ reason: "/stop:watchdog-force" });
+  } catch { /* best-effort */ }
+}
+
 function buildAbortTargetApplyParams(
   params: Parameters<CommandHandler>[0],
   abortTarget: AbortTarget,
@@ -165,6 +177,9 @@ export const handleStopCommand: CommandHandler = async (params, allowTextCommand
   );
   await triggerInternalHook(hookEvent);
 
+  // Fire-and-forget watchdog: if the run doesn't stop within 5s, force gateway restart
+  forceStopWithWatchdog(abortTarget.key);
+
   const { stopped } = stopSubagentsForRequester({
     cfg: params.cfg,
     requesterSessionKey: abortTarget.key ?? params.sessionKey,
@@ -191,5 +206,6 @@ export const handleAbortTrigger: CommandHandler = async (params, allowTextComman
     sessionStore: params.sessionStore,
   });
   await applyAbortTarget(buildAbortTargetApplyParams(params, abortTarget));
+  forceStopWithWatchdog(abortTarget.key);
   return { shouldContinue: false, reply: { text: "⚙️ Agent was aborted." } };
 };
