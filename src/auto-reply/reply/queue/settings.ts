@@ -5,7 +5,10 @@ import { DEFAULT_QUEUE_CAP, DEFAULT_QUEUE_DEBOUNCE_MS, DEFAULT_QUEUE_DROP } from
 import type { QueueMode, QueueSettings, ResolveQueueSettingsParams } from "./types.js";
 
 function defaultQueueModeForChannel(_channel?: string): QueueMode {
-  return "steer";
+  // When a new message arrives while the agent is busy, interrupt the current
+  // run and dispatch immediately instead of queuing. This allows users to
+  // correct course mid-generation without waiting for the current step to finish.
+  return "interrupt";
 }
 
 /** Resolve per-channel debounce override from debounceMsByChannel map. */
