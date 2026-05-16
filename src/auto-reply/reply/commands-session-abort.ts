@@ -109,15 +109,27 @@ async function applyAbortTarget(params: {
   }
 }
 
-/** Watchdog: if the abort signal doesn't stop the run within 5s, force gateway restart. */
+/**
+ * Watchdog: if the abort signal doesn't stop the run within 5s, force-abort.
+ * Unlike /restart, this does NOT restart the gateway — only force-terminates the current run.
+ * This gives a better UX than waiting indefinitely for a stuck model call.
+ */
 const STOP_FORCE_GRACE_MS = 5_000;
 async function forceStopWithWatchdog(sessionKey: string | undefined): Promise<void> {
   if (!sessionKey) return;
+  // Phase 1: wait for normal abort (AbortController + idle)
   const idle = await replyRunRegistry.waitForIdle(sessionKey, STOP_FORCE_GRACE_MS);
-  if (idle) return; // Run stopped cleanly
+  if (idle) return;
+  // Phase 2: force-abort — clear queues and abort again
+  clearSessionQueues([sessionKey]);
+  replyRunRegistry.abort(sessionKey);
+  // Phase 3: force-terminate any embedded pi run
   try {
-    const { scheduleGatewaySigusr1Restart } = await import("./restart.js");
-    scheduleGatewaySigusr1Restart({ reason: "/stop:watchdog-force" });
+    const sessionId = replyRunRegistry.resolveSessionId(sessionKey);
+    if (sessionId) {
+      const { abortEmbeddedPiRun } = await import("../../agents/pi-embedded-runner/runs.js");
+      abortEmbeddedPiRun(sessionId);
+    }
   } catch { /* best-effort */ }
 }
 
