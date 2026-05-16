@@ -681,6 +681,7 @@ export const handleRestartCommand: CommandHandler = async (params, allowTextComm
     let sentinelPath: string | null = null;
     scheduleGatewaySigusr1Restart({
       reason: "/restart",
+      delayMs: 5_000,
       emitHooks: sentinelPayload
         ? {
             beforeEmit: async () => {

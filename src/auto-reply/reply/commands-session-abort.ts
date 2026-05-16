@@ -110,20 +110,16 @@ async function applyAbortTarget(params: {
 }
 
 /**
- * Watchdog: if the abort signal doesn't stop the run within 5s, force-abort.
- * Unlike /restart, this does NOT restart the gateway — only force-terminates the current run.
- * This gives a better UX than waiting indefinitely for a stuck model call.
+ * Emergency stop: immediately abort the current run without waiting.
+ * This is the /stop behavior — it should take effect as fast as possible.
+ * Does NOT restart the gateway — only force-terminates the current run.
  */
-const STOP_FORCE_GRACE_MS = 5_000;
-async function forceStopWithWatchdog(sessionKey: string | undefined): Promise<void> {
+export async function forceAbortSession(sessionKey: string | undefined): Promise<void> {
   if (!sessionKey) return;
-  // Phase 1: wait for normal abort (AbortController + idle)
-  const idle = await replyRunRegistry.waitForIdle(sessionKey, STOP_FORCE_GRACE_MS);
-  if (idle) return;
-  // Phase 2: force-abort — clear queues and abort again
+  // Phase 1: immediately clear queues and send abort signal
   clearSessionQueues([sessionKey]);
   replyRunRegistry.abort(sessionKey);
-  // Phase 3: force-terminate any embedded pi run
+  // Phase 2: force-terminate any embedded pi run
   try {
     const sessionId = replyRunRegistry.resolveSessionId(sessionKey);
     if (sessionId) {
@@ -189,8 +185,8 @@ export const handleStopCommand: CommandHandler = async (params, allowTextCommand
   );
   await triggerInternalHook(hookEvent);
 
-  // Fire-and-forget watchdog: if the run doesn't stop within 5s, force gateway restart
-  forceStopWithWatchdog(abortTarget.key);
+  // Immediate force-abort — /stop is for emergency use
+  forceAbortSession(abortTarget.key);
 
   const { stopped } = stopSubagentsForRequester({
     cfg: params.cfg,
@@ -218,6 +214,6 @@ export const handleAbortTrigger: CommandHandler = async (params, allowTextComman
     sessionStore: params.sessionStore,
   });
   await applyAbortTarget(buildAbortTargetApplyParams(params, abortTarget));
-  forceStopWithWatchdog(abortTarget.key);
+  forceAbortSession(abortTarget.key);
   return { shouldContinue: false, reply: { text: "⚙️ Agent was aborted." } };
 };
