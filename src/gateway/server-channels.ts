@@ -36,6 +36,7 @@ const CHANNEL_RESTART_POLICY: BackoffPolicy = {
   jitter: 0.1,
 };
 const MAX_RESTART_ATTEMPTS = 10;
+const CHANNEL_STARTUP_TIMEOUT_MS = 120_000; // 2 minutes max per channel startup
 const CHANNEL_STOP_ABORT_TIMEOUT_MS = 5_000;
 const CHANNEL_STARTUP_CONCURRENCY = 4;
 
@@ -507,6 +508,20 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
             lastError: null,
             reconnectAttempts: preserveRestartAttempts ? (restartAttempts.get(rKey) ?? 0) : 0,
           });
+          // Enforce a startup timeout so stuck channels (e.g. Discord network timeout)
+          // don't block the entire event loop indefinitely.
+          const startupTimeout = setTimeout(() => {
+            if (!abort.signal.aborted) {
+              log.error?.(`[${id}] channel startup timed out after ${CHANNEL_STARTUP_TIMEOUT_MS}ms; aborting`);
+              abort.abort();
+              setRuntime(channelId, id, {
+                accountId: id,
+                running: false,
+                lastStartAt: Date.now(),
+                lastError: `startup timed out after ${CHANNEL_STARTUP_TIMEOUT_MS}ms`,
+              });
+            }
+          }, CHANNEL_STARTUP_TIMEOUT_MS);
           const task = Promise.resolve().then(() =>
             measureStartup(`channels.${channelId}.start-account`, () =>
               startAccount({
@@ -537,6 +552,7 @@ export function createChannelManager(opts: ChannelManagerOptions): ChannelManage
               log.error?.(`[${id}] channel exited: ${message}`);
             })
             .finally(async () => {
+              clearTimeout(startupTimeout);
               await cleanupTaskScopedApprovalRuntime("channel cleanup failed");
               setRuntime(channelId, id, {
                 accountId: id,
