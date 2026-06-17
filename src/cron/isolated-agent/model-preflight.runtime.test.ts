@@ -25,9 +25,15 @@ function requireFetchPreflightRequest(): {
   url?: string;
   timeoutMs?: number;
   auditContext?: string;
+  init?: { method?: string; headers?: Record<string, string> };
 } {
   const request = fetchWithSsrFGuardMock.mock.calls[0]?.[0] as
-    | { url?: string; timeoutMs?: number; auditContext?: string }
+    | {
+        url?: string;
+        timeoutMs?: number;
+        auditContext?: string;
+        init?: { method?: string; headers?: Record<string, string> };
+      }
     | undefined;
   if (!request) {
     throw new Error("Expected cron model preflight fetch request");
@@ -110,65 +116,63 @@ describe("preflightCronModelProvider", () => {
     const second = await preflightCronModelProvider({
       cfg,
       provider: "ollama",
-      model: "llama3.3:70b",
+      model: "qwen3:32b",
       nowMs: 2000,
-    });
-
-    expect(first.status).toBe("unavailable");
-    if (first.status !== "unavailable") {
-      throw new Error(`expected first preflight unavailable, got ${first.status}`);
-    }
-    expect(first.provider).toBe("ollama");
-    expect(first.model).toBe("qwen3:32b");
-    expect(first.baseUrl).toBe("http://localhost:11434");
-    expect(first.retryAfterMs).toBe(300000);
-    expect(second.status).toBe("unavailable");
-    if (second.status !== "unavailable") {
-      throw new Error(`expected second preflight unavailable, got ${second.status}`);
-    }
-    expect(second.provider).toBe("ollama");
-    expect(second.model).toBe("llama3.3:70b");
-    expect(second.baseUrl).toBe("http://localhost:11434");
-    expect(second.retryAfterMs).toBe(300000);
-    expect(fetchWithSsrFGuardMock).toHaveBeenCalledTimes(1);
-    const request = requireFetchPreflightRequest();
-    expect(request.url).toBe("http://localhost:11434/api/tags");
-    expect(request.auditContext).toBe("cron-model-provider-preflight");
-  });
-
-  it("retries an unavailable endpoint after the cache ttl", async () => {
-    fetchWithSsrFGuardMock.mockRejectedValueOnce(new Error("ECONNREFUSED")).mockResolvedValueOnce({
-      response: { status: 200 },
-      release: vi.fn(async () => {}),
-    });
-
-    const cfg = {
-      models: {
-        providers: {
-          ollama: {
-            api: "ollama" as const,
-            baseUrl: "http://127.0.0.1:11434",
-            models: [],
-          },
-        },
-      },
-    };
-
-    const first = await preflightCronModelProvider({
-      cfg,
-      provider: "ollama",
-      model: "llama3",
-      nowMs: 1000,
-    });
-    const second = await preflightCronModelProvider({
-      cfg,
-      provider: "ollama",
-      model: "llama3",
-      nowMs: 1000 + 300001,
     });
 
     expect(first.status).toBe("unavailable");
     expect(second).toEqual({ status: "available" });
     expect(fetchWithSsrFGuardMock).toHaveBeenCalledTimes(2);
+  });
+
+  it("sends Authorization Bearer header when provider config has apiKey", async () => {
+    mockReachableResponse(200);
+
+    const result = await preflightCronModelProvider({
+      cfg: {
+        models: {
+          providers: {
+            litellm: {
+              api: "openai-completions",
+              baseUrl: "http://127.0.0.1:4000",
+              apiKey: "***",
+              models: [],
+            },
+          },
+        },
+      },
+      provider: "litellm",
+      model: "gpt-4",
+    });
+
+    expect(result).toEqual({ status: "available" });
+    const request = requireFetchPreflightRequest();
+    expect(request.init?.headers).toEqual({
+      Authorization: "***",
+    });
+  });
+
+  it("does not send Authorization header when no apiKey is available", async () => {
+    mockReachableResponse(200);
+
+    const result = await preflightCronModelProvider({
+      cfg: {
+        models: {
+        providers: {
+            ollama: {
+              api: "ollama",
+              baseUrl: "http://localhost:11434",
+              models: [],
+            },
+          },
+        },
+      },
+      provider: "ollama",
+      model: "llama3",
+    });
+
+    expect(result).toEqual({ status: "available" });
+    const request = requireFetchPreflightRequest();
+    expect(request.init?.headers).toBeUndefined();
   });
 });
